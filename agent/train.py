@@ -1,25 +1,22 @@
-from torch.utils.data import DataLoader
-from datasets import COCODataset, DefaultTrainTransform, DefaultValidTransform, collate_fn
+import torch
+from models import EfficientDet
+from loss import FocalLoss
+from datasets import get_data
+
 
 def train(args):
     # Model
     model = EfficientDet()
-    model.initialize()
-    model.cuda()
+    # model.initialize()
+    # model.cuda()
 
     # Loss, Optimizer, LR scheduler
     criterion = FocalLoss()
-    optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, nestrov=True)
+    optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, momentum=0.9)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=3, verbose=True)
 
     # Load Dataset
-    train_set = COCODataset(args.data_path, set_name='train2017', transform=DefaultTrainTransform(size=512))
-    val_set = COCODataset(args.data_path, set_name='val2017', transform=DefaultValidTransform(size=512))
-
-    train_loader = DataLoader(dataset=train_set, batch_size=args.batch_size, shuffle=True, drop_last=True,
-                              collate_fn=collate_fn, num_workers=args.num_workers)
-    val_loader = DataLoader(dataset=val_set, batch_size=args.batch_size, shuffle=False, drop_last=True,
-                            collate_fn=collate_fn, num_workers=args.num_workers)
+    train_loader, test_loader = get_data(args.dataset, args.data_path, args.batch_size)
 
     # Start Training
     for epoch in range(args.num_epochs):
@@ -40,7 +37,7 @@ def train(args):
             cls_loss = cls_loss.mean()
             reg_loss = reg_loss.mean()
             loss = cls_loss + reg_loss
-            
+
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
